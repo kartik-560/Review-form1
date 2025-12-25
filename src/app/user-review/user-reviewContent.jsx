@@ -703,7 +703,7 @@ export default function ReviewForm() {
                 formData.append("images", img);
             });
 
-            const res = await fetch("https://diandrous-damion-clearer.ngrok-free.dev/api/user-review", {
+            const res = await fetch("https://review-backend-two.vercel.app/api/user-review", {
                 method: "POST",
                 headers: {
                     'ngrok-skip-browser-warning': 'true',
@@ -767,7 +767,7 @@ export default function ReviewForm() {
 
         try {
             const res = await fetch(
-                `https://diandrous-damion-clearer.ngrok-free.dev/api/user-review/${submittedReviewId}`,
+                `https://review-backend-two.vercel.app/api/user-review/${submittedReviewId}`,
                 {
                     method: "PATCH",
                     headers: {
