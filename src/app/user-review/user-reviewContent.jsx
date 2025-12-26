@@ -1,9 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
     User,
     Mail,
@@ -25,19 +22,7 @@ import CloudinaryImageUploader from "./CloudinaryImageUploader";
 import toast from "react-hot-toast";
 import { useSearchParams } from 'next/navigation';
 
-const reviewSchema = z.object({
-    rating: z.number().min(1, "Rating is required").max(10),
-    reason_ids: z.array(z.number()),
-    description: z.string().optional(),
-    images: z.array(z.instanceof(File)).optional(),
-    location: z
-        .object({
-            latitude: z.number(),
-            longitude: z.number(),
-            address: z.string().optional(),
-        })
-        .nullable(),
-});
+
 
 const commonIndianWashroomIssues = [
     { id: 1, text: "Dirty or unflushed toilets (Western or Indian)" },
@@ -59,21 +44,26 @@ const commonIndianWashroomIssues = [
     { id: 17, text: "Poor or no lighting" },
     { id: 18, text: "No hooks for bags or clothes" },
     { id: 19, text: "Poor ventilation (no fan or window)" },
+    { id: 0, text: "No Issues" },
 ];
 
 const translations = {
     en: {
-        title: "Public Washroom Review",
+        title: "Your voice cleans India |SWACHH DRISHTI",
         subtitle: "Help others by sharing your washroom experience.",
         ratingLabel: "Overall Rating *",
         fields: {
-            name: "Name (Optional)",
-            email: "Email (Optional)",
-            phone: "Phone Number (Optional)",
+            name: "Name",
+            email: "Email",
+            phone: "Phone Number",
             additional: "Additional Comments (Optional)",
-            selectIssues: "Select Observed Issues (Optional):",
+            selectIssues: "What did the AI miss (Optional):",
             uploadPhotos: "Upload Photos (Optional - Max 3)",
             washroomLocation: "Washroom Location *",
+            noIssues: "No Issues",
+            locationError: "Location Error:",
+            locationDetected: "Location Detected:",
+            coordinates: "Coordinates:",
         },
         placeholders: {
             name: "Your full name",
@@ -86,12 +76,12 @@ const translations = {
             submitting: "Submitting Review...",
             submitAnother: "Submit Another Review",
             close: "Close",
-            skip: "Skip for Now",
+
             shareWhatsApp: "Share on WhatsApp",
             downloadReceipt: "Download Receipt",
             copyToken: "Copy Token",
-            continue: "Continue",
-            takephoto: "Take Photo",
+            continue: "submit",
+            takephoto: "Activate AI Lens",
             getCurrentLocation: "Get Current Location",
             detecting: "Detecting...",
         },
@@ -105,16 +95,22 @@ const translations = {
             nameRequired: "Name is required",
             emailRequired: "Please enter a valid email",
             phoneInvalid: "Phone must be at least 10 digits",
+            contactUpdateSuccess: "Contact details updated successfully!",
+            locationNotSupported: "Geolocation is not supported by this browser.",
+            locationPermissionDenied: "Location access denied. Please enable location permissions.",
+            locationUnavailable: "Location information is unavailable.",
+            locationTimeout: "Location request timed out.",
+            locationUnknownError: "An unknown error occurred while retrieving location.",
         },
         campaign: {
-            title: "Jagruk Nagrik Abhiyan",
-            subtitle: "Aware Citizen Campaign",
+            title: "Swachh Drishti Abhiyan",
+            subtitle: "Analysis Complete. Your voice helped in cleaning India.",
             description: "Help us improve public facilities by sharing your contact details!",
-            optionalNote: "This is optional - you can skip if you prefer.",
+            // optionalNote: "Share your details to enter our quarterly 'Swachh Sitara Awards'. Win vouchers for helping India be cleaner",
             tokenLabel: "Your Token Number",
             contactInfo: "Your Contact Information",
             shareMessage: "Share your contribution with others",
-            enterDetails: "Would you like to be part of the Aware Citizen Campaign?",
+            enterDetails: "Share your details to enter our quarterly 'Swachh Sitara Awards'. Win vouchers for helping India be cleaner",
         },
         ratingLabels: {
             veryPoor: 'Very Poor',
@@ -138,17 +134,21 @@ const translations = {
         ],
     },
     hi: {
-        title: "सार्वजनिक शौचालय समीक्षा",
+        title: "आपकी आवाज़ भारत को स्वच्छ बनाती है | स्वच्छ दृष्टि",
         subtitle: "अपना अनुभव साझा करके दूसरों की मदद करें।",
         ratingLabel: "कुल रेटिंग *",
         fields: {
-            name: "नाम (वैकल्पिक)",
-            email: "ईमेल (वैकल्पिक)",
-            phone: "फ़ोन नंबर (वैकल्पिक)",
+            name: "नाम ",
+            email: "ईमेल ",
+            phone: "फ़ोन नंबर ",
             additional: "अतिरिक्त टिप्पणियाँ (वैकल्पिक)",
-            selectIssues: "देखी गई समस्याएँ चुनें (वैकल्पिक):",
+            selectIssues: "AI से क्या छूट गया? (वैकल्पिक):",
             uploadPhotos: "फ़ोटो अपलोड करें (वैकल्पिक - अधिकतम 3)",
             washroomLocation: "शौचालय का स्थान *",
+            noIssues: "कोई समस्या नहीं",
+            locationError: "स्थान त्रुटि:",
+            locationDetected: "स्थान का पता चला:",
+            coordinates: "निर्देशांक:",
         },
         placeholders: {
             name: "आपका पूरा नाम",
@@ -161,12 +161,12 @@ const translations = {
             submitting: "समीक्षा जमा की जा रही है...",
             submitAnother: "दूसरी समीक्षा जमा करें",
             close: "बंद करें",
-            skip: "अभी छोड़ें",
+
             shareWhatsApp: "व्हाट्सएप पर शेयर करें",
             downloadReceipt: "रसीद डाउनलोड करें",
             copyToken: "टोकन कॉपी करें",
-            continue: "जारी रखें",
-            takephoto: " फोटो लें",
+            continue: "जमा करें",
+            takephoto: " AI लेंस सक्रिय करें",
             getCurrentLocation: "वर्तमान स्थान प्राप्त करें",
             detecting: "पता लगाया जा रहा है...",
         },
@@ -180,16 +180,22 @@ const translations = {
             nameRequired: "नाम आवश्यक है",
             emailRequired: "कृपया एक वैध ईमेल दर्ज करें",
             phoneInvalid: "फ़ोन कम से कम 10 अंकों का होना चाहिए",
+            contactUpdateSuccess: "संपर्क विवरण सफलतापूर्वक अपडेट किया गया!",
+            locationNotSupported: "यह ब्राउज़र भौगोलिक स्थान का समर्थन नहीं करता।",
+            locationPermissionDenied: "स्थान एक्सेस अस्वीकृत। कृपया स्थान अनुमतियाँ सक्षम करें।",
+            locationUnavailable: "स्थान की जानकारी उपलब्ध नहीं है।",
+            locationTimeout: "स्थान अनुरोध समय समाप्त हो गया।",
+            locationUnknownError: "स्थान प्राप्त करते समय एक अज्ञात त्रुटि हुई।",
         },
         campaign: {
-            title: "जागरूक नागरिक अभियान",
-            subtitle: "सचेत नागरिक अभियान",
+            title: "स्वच्छ दृष्टि अभियान",
+            subtitle: "विश्लेषण पूर्ण हुआ। आपकी आवाज़ ने भारत को स्वच्छ बनाने में मदद की।",
             description: "अपने संपर्क विवरण साझा करके सार्वजनिक सुविधाओं को बेहतर बनाने में हमारी मदद करें!",
-            optionalNote: "यह वैकल्पिक है - आप चाहें तो छोड़ सकते हैं।",
+            // optionalNote: "यह वैकल्पिक है - आप चाहें तो छोड़ सकते हैं।",
             tokenLabel: "आपका टोकन नंबर",
             contactInfo: "आपकी संपर्क जानकारी",
             shareMessage: "अपना योगदान दूसरों के साथ साझा करें",
-            enterDetails: "क्या आप सचेत नागरिक अभियान का हिस्सा बनना चाहेंगे?",
+            enterDetails: "हमारे त्रैमासिक ‘स्वच्छ सितारा पुरस्कार’ में भाग लेने के लिए अपनी जानकारी साझा करें। भारत को स्वच्छ बनाने में मदद करने पर वाउचर जीतें।",
         },
         ratingLabels: {
             veryPoor: 'बहुत खराब',
@@ -213,17 +219,21 @@ const translations = {
         ],
     },
     mr: {
-        title: "सार्वजनिक शौचालय पुनरावलोकन",
+        title: "तुमचा आवाज भारत स्वच्छ करतो | स्वच्छ दृष्टि",
         subtitle: "तुमचा अनुभव शेअर करून इतरांना मदत करा.",
         ratingLabel: "एकूण रेटिंग *",
         fields: {
-            name: "नाव (ऐच्छिक)",
-            email: "ईमेल (ऐच्छिक)",
-            phone: "फोन नंबर (ऐच्छिक)",
+            name: "नाव ",
+            email: "ईमेल",
+            phone: "फोन नंबर",
             additional: "अतिरिक्त टिप्पण्या (ऐच्छिक)",
-            selectIssues: "नोट केलेल्या समस्या निवडा (ऐच्छिक):",
+            selectIssues: "AI कडून काय चुकलं? (ऐच्छिक):",
             uploadPhotos: "फोटो अपलोड करा (ऐच्छिक - कमाल 3)",
             washroomLocation: "शौचालय स्थान *",
+            noIssues: "कोणतीही समस्या नाही",
+            locationError: "स्थान त्रुटी:",
+            locationDetected: "स्थान शोधले:",
+            coordinates: "निर्देशांक:",
         },
         placeholders: {
             name: "तुमचे पूर्ण नाव",
@@ -236,12 +246,12 @@ const translations = {
             submitting: "पुनरावलोकन सबमिट होत आहे...",
             submitAnother: "दुसरे पुनरावलोकन सबमिट करा",
             close: "बंद करा",
-            skip: "आता सोडा",
+
             shareWhatsApp: "व्हाट्सअॅपवर शेअर करा",
             downloadReceipt: "पावती डाउनलोड करा",
             copyToken: "टोकन कॉपी करा",
-            continue: "सुरू ठेवा",
-            takephoto: "फोटो घ्या",
+            continue: "सादर करा",
+            takephoto: "AI लेन्स सक्रिय करा",
             getCurrentLocation: "सध्याचे स्थान मिळवा",
             detecting: "शोधत आहे...",
         },
@@ -255,16 +265,23 @@ const translations = {
             nameRequired: "नाव आवश्यक आहे",
             emailRequired: "कृपया एक वैध ईमेल प्रविष्ट करा",
             phoneInvalid: "फोन कमीतकमी 10 अंकांचा असावा",
+            contactUpdateSuccess: "संपर्क तपशील यशस्वीरित्या अपडेट केले!",
+            locationNotSupported: "हा ब्राउझर भौगोलिक स्थानाचे समर्थन करत नाही.",
+            locationPermissionDenied: "स्थान प्रवेश नाकारला. कृपया स्थान परवानग्या सक्षम करा.",
+            locationUnavailable: "स्थान माहिती उपलब्ध नाही.",
+            locationTimeout: "स्थान विनंती कालबाह्य झाली.",
+            locationUnknownError: "स्थान मिळवताना अज्ञात त्रुटी आली.",
+
         },
         campaign: {
-            title: "जागरूक नागरिक अभियान",
-            subtitle: "जागरूक नागरिक मोहीम",
+            title: "स्वच्छ दृष्टी अभियान",
+            subtitle: "विश्लेषण पूर्ण झाले. तुमच्या आवाजामुळे भारत स्वच्छ होण्यास मदत झाली.",
             description: "तुमचे संपर्क तपशील शेअर करून सार्वजनिक सुविधा सुधारण्यात आमची मदत करा!",
-            optionalNote: "हे ऐच्छिक आहे - तुम्हाला हवे असल्यास सोडू शकता.",
+            // optionalNote: "हे ऐच्छिक आहे - तुम्हाला हवे असल्यास सोडू शकता.",
             tokenLabel: "तुमचा टोकन नंबर",
             contactInfo: "तुमची संपर्क माहिती",
             shareMessage: "तुमचे योगदान इतरांसोबत शेअर करा",
-            enterDetails: "तुम्हाला जागरूक नागरिक मोहिमेचा भाग व्हायचे आहे का?",
+            enterDetails: "आमच्या त्रैमासिक ‘स्वच्छ सितारा पुरस्कार’मध्ये सहभागी होण्यासाठी तुमची माहिती शेअर करा. भारत स्वच्छ ठेवण्यास मदत केल्याबद्दल वाउचर्स जिंका",
         },
         ratingLabels: {
             veryPoor: 'अतिशय वाईट',
@@ -289,7 +306,7 @@ const translations = {
     },
 };
 
-const JagrukNagrikPopup = ({ isOpen, onClose, reviewData, lang, onSubmitWithDetails, onSkip }) => {
+const JagrukNagrikPopup = ({ isOpen, onClose, reviewData, lang, onSubmitWithDetails, }) => {
     const [copied, setCopied] = useState(false);
     const [step, setStep] = useState(1);
     const [contactDetails, setContactDetails] = useState({
@@ -298,18 +315,19 @@ const JagrukNagrikPopup = ({ isOpen, onClose, reviewData, lang, onSubmitWithDeta
         phone: "",
     });
     const [errors, setErrors] = useState({});
-    const [tokenNumber, setTokenNumber] = useState("");
 
     const t = translations[lang].campaign;
     const tMsg = translations[lang].messages;
     const tBtn = translations[lang].buttons;
+
+    // Generate token from reviewData or create a new one
+    const tokenNumber = reviewData?.tokenNumber || "";
 
     useEffect(() => {
         if (isOpen) {
             setStep(1);
             setContactDetails({ name: "", email: "", phone: "" });
             setErrors({});
-            setTokenNumber("");
         }
     }, [isOpen]);
 
@@ -318,39 +336,39 @@ const JagrukNagrikPopup = ({ isOpen, onClose, reviewData, lang, onSubmitWithDeta
     const validateContactForm = () => {
         const newErrors = {};
 
-        // Only validate if user has entered something
-        if (contactDetails.name.trim() || contactDetails.email.trim() || contactDetails.phone.trim()) {
-            if (!contactDetails.name.trim()) {
-                newErrors.name = tMsg.nameRequired;
-            }
+        // ✅ Check if all fields are filled
+        if (!contactDetails.name.trim()) {
+            newErrors.name = tMsg.nameRequired;
+        }
 
-            if (!contactDetails.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactDetails.email)) {
-                newErrors.email = tMsg.emailRequired;
-            }
+        if (!contactDetails.email.trim()) {
+            newErrors.email = tMsg.emailRequired;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactDetails.email)) {
+            newErrors.email = tMsg.emailRequired;
+        }
 
-            if (contactDetails.phone && contactDetails.phone.length < 10) {
-                newErrors.phone = tMsg.phoneInvalid;
-            }
+        if (!contactDetails.phone.trim()) {
+            newErrors.phone = tMsg.phoneInvalid;
+        } else if (contactDetails.phone.trim().length < 10) {
+            newErrors.phone = tMsg.phoneInvalid;
         }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleContinue = async () => {
+
+
+    const handleSubmit = async () => {
         if (validateContactForm()) {
             const success = await onSubmitWithDetails(contactDetails);
             if (success) {
-                const generatedToken = `JNA-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-                setTokenNumber(generatedToken);
-                setStep(2);
+                setStep(2); // ✅ Just move to step 2, token already exists in reviewData
             }
         }
     };
 
-    const handleSkip = () => {
-        onSkip();
-    };
+
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(tokenNumber);
@@ -365,85 +383,303 @@ const JagrukNagrikPopup = ({ isOpen, onClose, reviewData, lang, onSubmitWithDeta
         window.open(url, '_blank');
     };
 
-    const downloadReceipt = () => {
-        const receiptContent = `
-=================================
-JAGRUK NAGRIK ABHIYAN
-Aware Citizen Campaign
-=================================
-
-Token Number: ${tokenNumber}
-Date: ${new Date().toLocaleString()}
-
-Contributor Details:
-Name: ${contactDetails.name}
-Email: ${contactDetails.email}
-${contactDetails.phone ? `Phone: ${contactDetails.phone}` : ''}
-
-Thank you for contributing to 
-improving public facilities!
-
-=================================
-        `;
-
-        const blob = new Blob([receiptContent], { type: 'text/plain' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `JNA-Receipt-${tokenNumber}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-    };
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn">
-            <div className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-slideUp">
+        // <div className="fixed inset-0 z-50 flex items-center justify-center p-3 xs:p-4 sm:p-6 bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+        //     <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-[95%] xs:max-w-md sm:max-w-lg md:max-w-xl my-auto overflow-hidden animate-slideUp">
+        //         {/* Decorative Header */}
+        //         <div className="relative bg-gradient-to-r from-blue-600 to-blue-700 p-4 xs:p-6 sm:p-8 text-white overflow-hidden">
+        //             {/* Background decorations */}
+        //             <div className="absolute top-0 right-0 w-24 h-24 xs:w-32 xs:h-32 sm:w-40 sm:h-40 bg-white opacity-10 rounded-full -mr-12 -mt-12 xs:-mr-16 xs:-mt-16 sm:-mr-20 sm:-mt-20"></div>
+        //             <div className="absolute bottom-0 left-0 w-20 h-20 xs:w-24 xs:h-24 sm:w-32 sm:h-32 bg-white opacity-10 rounded-full -ml-10 -mb-10 xs:-ml-12 xs:-mb-12 sm:-ml-16 sm:-mb-16"></div>
+
+        //             <button
+        //                 onClick={onClose}
+        //                 className="absolute top-2 right-2 xs:top-3 xs:right-3 sm:top-4 sm:right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1.5 xs:p-2 transition-all z-10"
+        //                 aria-label="Close modal"
+        //             >
+        //                 <X className="h-4 w-4 xs:h-5 xs:w-5" />
+        //             </button>
+
+        //             <div className="relative z-10 text-center">
+        //                 <div className="inline-flex items-center justify-center w-14 h-14 xs:w-16 xs:h-16 sm:w-20 sm:h-20 bg-white rounded-full mb-2 xs:mb-3 sm:mb-4 animate-bounce">
+        //                     <Award className="h-7 w-7 xs:h-8 xs:w-8 sm:h-10 sm:w-10 text-blue-600" />
+        //                 </div>
+        //                 <h2 className="text-xl xs:text-2xl sm:text-3xl font-bold mb-1 xs:mb-2 leading-tight">{t.title}</h2>
+        //                 <p className="text-blue-100 text-xs xs:text-sm font-medium">{t.subtitle}</p>
+        //             </div>
+        //         </div>
+
+        //         {/* Content */}
+        //         <div className="p-4 xs:p-6 sm:p-8 space-y-4 xs:space-y-5 sm:space-y-6 max-h-[calc(100vh-200px)] xs:max-h-[calc(100vh-220px)] sm:max-h-none overflow-y-auto">
+        //             {step === 1 ? (
+        //                 <>
+        //                     {/* Success Message */}
+        //                     <div className="text-center">
+        //                         <CheckCircle className="h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 text-blue-500 mx-auto mb-2 xs:mb-3" />
+        //                         <p className="text-gray-700 text-base xs:text-lg mb-1 xs:mb-2 font-semibold leading-snug">{tMsg.successMessage}</p>
+        //                     </div>
+
+        //                     {/* Token Number - Show on First Step */}
+        //                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-4 xs:p-5 sm:p-6">
+        //                         <p className="text-xs xs:text-sm font-medium text-gray-600 mb-2 text-center">
+        //                             {t.tokenLabel}
+        //                         </p>
+        //                         <div className="flex items-center justify-center gap-2 xs:gap-3 flex-wrap">
+        //                             <span className="text-xl xs:text-2xl sm:text-3xl font-bold text-blue-700 tracking-wider break-all">
+        //                                 {tokenNumber}
+        //                             </span>
+        //                             <button
+        //                                 onClick={copyToClipboard}
+        //                                 className="p-1.5 xs:p-2 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0"
+        //                                 title={tBtn.copyToken}
+        //                                 aria-label="Copy token"
+        //                             >
+        //                                 {copied ? (
+        //                                     <CheckCircle className="h-4 w-4 xs:h-5 xs:w-5 text-blue-600" />
+        //                                 ) : (
+        //                                     <Copy className="h-4 w-4 xs:h-5 xs:w-5 text-gray-600" />
+        //                                 )}
+        //                             </button>
+        //                         </div>
+        //                     </div>
+
+        //                     {/* Campaign Question */}
+        //                     <div className="text-center">
+        //                         <p className="text-gray-700 text-sm xs:text-base font-semibold mb-1">{t.enterDetails}</p>
+
+        //                     </div>
+        //                     {errors.general && (
+        //                         <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+        //                             <p className="text-red-600 text-sm text-center">{errors.general}</p>
+        //                         </div>
+        //                     )}
+        //                     <div className="space-y-3 xs:space-y-4">
+        //                         {/* Name Field */}
+        //                         <div>
+        //                             <label className="flex items-center text-xs xs:text-sm font-medium text-gray-700 mb-1.5 xs:mb-2">
+        //                                 <User className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
+        //                                 {translations[lang].fields.name}
+        //                             </label>
+        //                             <input
+        //                                 type="text"
+        //                                 value={contactDetails.name}
+        //                                 onChange={(e) => setContactDetails({ ...contactDetails, name: e.target.value })}
+        //                                 className="w-full px-3 py-2.5 xs:px-4 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+        //                                 placeholder={translations[lang].placeholders.name}
+        //                             />
+        //                             {errors.name && (
+        //                                 <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+        //                             )}
+        //                         </div>
+
+        //                         {/* Email Field */}
+        //                         <div>
+        //                             <label className="flex items-center text-xs xs:text-sm font-medium text-gray-700 mb-1.5 xs:mb-2">
+        //                                 <Mail className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
+        //                                 {translations[lang].fields.email}
+        //                             </label>
+        //                             <input
+        //                                 type="email"
+        //                                 value={contactDetails.email}
+        //                                 onChange={(e) => setContactDetails({ ...contactDetails, email: e.target.value })}
+        //                                 className="w-full px-3 py-2.5 xs:px-4 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+        //                                 placeholder={translations[lang].placeholders.email}
+        //                             />
+        //                             {errors.email && (
+        //                                 <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+        //                             )}
+        //                         </div>
+
+        //                         {/* Phone Field */}
+        //                         <div>
+        //                             <label className="flex items-center text-xs xs:text-sm font-medium text-gray-700 mb-1.5 xs:mb-2">
+        //                                 <Phone className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
+        //                                 {translations[lang].fields.phone}
+        //                             </label>
+        //                             <input
+        //                                 type="tel"
+        //                                 value={contactDetails.phone}
+        //                                 onChange={(e) => setContactDetails({ ...contactDetails, phone: e.target.value })}
+        //                                 className="w-full px-3 py-2.5 xs:px-4 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+        //                                 placeholder={translations[lang].placeholders.phone}
+        //                                 maxLength={10}
+        //                             />
+        //                             {errors.phone && (
+        //                                 <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+        //                             )}
+        //                         </div>
+        //                     </div>
+
+        //                     {/* Action Buttons */}
+        //                     <div className="flex flex-col xs:flex-row gap-2.5 xs:gap-3 pt-2">
+
+        //                         <button
+        //                             onClick={handleSubmit}
+        //                             className="w-full xs:flex-1 bg-blue-600 text-white py-3 xs:py-3.5 sm:py-4 px-4 xs:px-6 rounded-xl hover:bg-blue-700 transition-all transform hover:scale-105 font-medium flex items-center justify-center gap-2 text-sm xs:text-base"
+        //                         >
+        //                             <span>{tBtn.continue}</span>
+        //                             <Send className="h-4 w-4 xs:h-5 xs:w-5" />
+        //                         </button>
+        //                     </div>
+        //                 </>
+        //             ) : (
+        //                 <>
+        //                     {/* Success Step - After submitting contact details */}
+        //                     <div className="text-center">
+        //                         <CheckCircle className="h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 text-blue-500 mx-auto mb-2 xs:mb-3" />
+        //                         <p className="text-gray-600 text-sm xs:text-base sm:text-lg">{t.description}</p>
+        //                     </div>
+
+        //                     {/* Token Number */}
+        //                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-4 xs:p-5 sm:p-6">
+        //                         <p className="text-xs xs:text-sm font-medium text-gray-600 mb-2 text-center">
+        //                             {t.tokenLabel}
+        //                         </p>
+        //                         <div className="flex items-center justify-center gap-2 xs:gap-3 flex-wrap">
+        //                             <span className="text-xl xs:text-2xl sm:text-3xl font-bold text-blue-700 tracking-wider break-all">
+        //                                 {tokenNumber}
+        //                             </span>
+        //                             <button
+        //                                 onClick={copyToClipboard}
+        //                                 className="p-1.5 xs:p-2 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0"
+        //                                 title={tBtn.copyToken}
+        //                                 aria-label="Copy token"
+        //                             >
+        //                                 {copied ? (
+        //                                     <CheckCircle className="h-4 w-4 xs:h-5 xs:w-5 text-blue-600" />
+        //                                 ) : (
+        //                                     <Copy className="h-4 w-4 xs:h-5 xs:w-5 text-gray-600" />
+        //                                 )}
+        //                             </button>
+        //                         </div>
+        //                     </div>
+
+        //                     {/* Share on WhatsApp Button */}
+        //                     <button
+        //                         onClick={shareOnWhatsApp}
+        //                         className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 xs:py-3.5 sm:py-4 px-4 xs:px-6 rounded-xl hover:bg-green-700 transition-all transform hover:scale-105 font-medium text-sm xs:text-base"
+        //                     >
+        //                         <MessageCircle className="h-5 w-5 xs:h-6 xs:w-6" />
+        //                         <span>{tBtn.shareWhatsApp}</span>
+        //                     </button>
+
+        //                     {/* Close Button */}
+        //                     <button
+        //                         onClick={onClose}
+        //                         className="w-full bg-gray-100 text-gray-700 py-2.5 xs:py-3 px-4 xs:px-6 rounded-xl hover:bg-gray-200 transition-colors font-medium text-sm xs:text-base"
+        //                     >
+        //                         {tBtn.close}
+        //                     </button>
+        //                 </>
+        //             )}
+        //         </div>
+        //     </div>
+
+        //     <style jsx>{`
+        //         @keyframes fadeIn {
+        //             from { opacity: 0; }
+        //             to { opacity: 1; }
+        //         }
+        //         @keyframes slideUp {
+        //             from { 
+        //                 opacity: 0;
+        //                 transform: translateY(30px);
+        //             }
+        //             to { 
+        //                 opacity: 1;
+        //                 transform: translateY(0);
+        //             }
+        //         }
+        //         .animate-fadeIn {
+        //             animation: fadeIn 0.3s ease-out;
+        //         }
+        //         .animate-slideUp {
+        //             animation: slideUp 0.4s ease-out;
+        //         }
+        //     `}</style>
+        // </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 xs:p-4 sm:p-6 bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+            <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-[95%] xs:max-w-md sm:max-w-lg md:max-w-xl my-auto overflow-hidden animate-slideUp flex flex-col max-h-[90vh]">
                 {/* Decorative Header */}
-                <div className="relative bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 p-8 text-white overflow-hidden">
-                    <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-10 rounded-full -mr-20 -mt-20"></div>
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-white opacity-10 rounded-full -ml-16 -mb-16"></div>
+                <div className="relative bg-gradient-to-r from-blue-600 to-blue-700 p-4 xs:p-6 sm:p-8 text-white overflow-hidden flex-shrink-0">
+                    {/* Background decorations */}
+                    <div className="absolute top-0 right-0 w-24 h-24 xs:w-32 xs:h-32 sm:w-40 sm:h-40 bg-white opacity-10 rounded-full -mr-12 -mt-12 xs:-mr-16 xs:-mt-16 sm:-mr-20 sm:-mt-20"></div>
+                    <div className="absolute bottom-0 left-0 w-20 h-20 xs:w-24 xs:h-24 sm:w-32 sm:h-32 bg-white opacity-10 rounded-full -ml-10 -mb-10 xs:-ml-12 xs:-mb-12 sm:-ml-16 sm:-mb-16"></div>
 
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-all"
+                        className="absolute top-2 right-2 xs:top-3 xs:right-3 sm:top-4 sm:right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1.5 xs:p-2 transition-all z-10"
+                        aria-label="Close modal"
                     >
-                        <X className="h-5 w-5" />
+                        <X className="h-4 w-4 xs:h-5 xs:w-5" />
                     </button>
 
                     <div className="relative z-10 text-center">
-                        <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full mb-4 animate-bounce">
-                            <Award className="h-10 w-10 text-green-600" />
+                        <div className="inline-flex items-center justify-center w-14 h-14 xs:w-16 xs:h-16 sm:w-20 sm:h-20 bg-white rounded-full mb-2 xs:mb-3 sm:mb-4 animate-bounce">
+                            <Award className="h-7 w-7 xs:h-8 xs:w-8 sm:h-10 sm:w-10 text-blue-600" />
                         </div>
-                        <h2 className="text-3xl font-bold mb-2">{t.title}</h2>
-                        <p className="text-green-100 text-sm font-medium">{t.subtitle}</p>
+                        <h2 className="text-xl xs:text-2xl sm:text-3xl font-bold mb-1 xs:mb-2 leading-tight">{t.title}</h2>
+                        <p className="text-blue-100 text-xs xs:text-sm font-medium">{t.subtitle}</p>
                     </div>
                 </div>
 
-                {/* Content */}
-                <div className="p-8 space-y-6">
+                {/* Content - Scrollable */}
+                <div className="flex-1 overflow-y-auto p-4 xs:p-6 sm:p-8 space-y-4 xs:space-y-5 sm:space-y-6">
                     {step === 1 ? (
                         <>
-                            {/* Contact Form Step */}
+                            {/* Success Message */}
                             <div className="text-center">
-                                <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-3" />
-                                <p className="text-gray-700 text-lg mb-2 font-semibold">{t.enterDetails}</p>
-                                <p className="text-gray-500 text-sm">{t.optionalNote}</p>
+                                <CheckCircle className="h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 text-blue-500 mx-auto mb-2 xs:mb-3" />
+                                <p className="text-gray-700 text-base xs:text-lg mb-1 xs:mb-2 font-semibold leading-snug">{tMsg.successMessage}</p>
                             </div>
 
-                            <div className="space-y-4">
+                            {/* Token Number - Show on First Step */}
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-4 xs:p-5 sm:p-6">
+                                <p className="text-xs xs:text-sm font-medium text-gray-600 mb-2 text-center">
+                                    {t.tokenLabel}
+                                </p>
+                                <div className="flex items-center justify-center gap-2 xs:gap-3 flex-wrap">
+                                    <span className="text-xl xs:text-2xl sm:text-3xl font-bold text-blue-700 tracking-wider break-all">
+                                        {tokenNumber}
+                                    </span>
+                                    <button
+                                        onClick={copyToClipboard}
+                                        className="p-1.5 xs:p-2 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0"
+                                        title={tBtn.copyToken}
+                                        aria-label="Copy token"
+                                    >
+                                        {copied ? (
+                                            <CheckCircle className="h-4 w-4 xs:h-5 xs:w-5 text-blue-600" />
+                                        ) : (
+                                            <Copy className="h-4 w-4 xs:h-5 xs:w-5 text-gray-600" />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Campaign Question */}
+                            <div className="text-center">
+                                <p className="text-gray-700 text-sm xs:text-base font-semibold mb-1">{t.enterDetails}</p>
+                            </div>
+
+                            {errors.general && (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                    <p className="text-red-600 text-sm text-center">{errors.general}</p>
+                                </div>
+                            )}
+
+                            <div className="space-y-3 xs:space-y-4">
                                 {/* Name Field */}
                                 <div>
-                                    <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                                        <User className="h-4 w-4 mr-2" />
+                                    <label className="flex items-center text-xs xs:text-sm font-medium text-gray-700 mb-1.5 xs:mb-2">
+                                        <User className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
                                         {translations[lang].fields.name}
                                     </label>
                                     <input
                                         type="text"
                                         value={contactDetails.name}
                                         onChange={(e) => setContactDetails({ ...contactDetails, name: e.target.value })}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-black"
+                                        className="w-full px-3 py-2.5 xs:px-4 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                                         placeholder={translations[lang].placeholders.name}
                                     />
                                     {errors.name && (
@@ -453,15 +689,15 @@ improving public facilities!
 
                                 {/* Email Field */}
                                 <div>
-                                    <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                                        <Mail className="h-4 w-4 mr-2" />
+                                    <label className="flex items-center text-xs xs:text-sm font-medium text-gray-700 mb-1.5 xs:mb-2">
+                                        <Mail className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
                                         {translations[lang].fields.email}
                                     </label>
                                     <input
                                         type="email"
                                         value={contactDetails.email}
                                         onChange={(e) => setContactDetails({ ...contactDetails, email: e.target.value })}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-black"
+                                        className="w-full px-3 py-2.5 xs:px-4 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                                         placeholder={translations[lang].placeholders.email}
                                     />
                                     {errors.email && (
@@ -471,15 +707,15 @@ improving public facilities!
 
                                 {/* Phone Field */}
                                 <div>
-                                    <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                                        <Phone className="h-4 w-4 mr-2" />
+                                    <label className="flex items-center text-xs xs:text-sm font-medium text-gray-700 mb-1.5 xs:mb-2">
+                                        <Phone className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
                                         {translations[lang].fields.phone}
                                     </label>
                                     <input
                                         type="tel"
                                         value={contactDetails.phone}
                                         onChange={(e) => setContactDetails({ ...contactDetails, phone: e.target.value })}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-black"
+                                        className="w-full px-3 py-2.5 xs:px-4 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                                         placeholder={translations[lang].placeholders.phone}
                                         maxLength={10}
                                     />
@@ -488,140 +724,98 @@ improving public facilities!
                                     )}
                                 </div>
                             </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={handleSkip}
-                                    className="flex-1 bg-gray-200 text-gray-700 py-4 px-6 rounded-xl hover:bg-gray-300 transition-all font-medium"
-                                >
-                                    {tBtn.skip}
-                                </button>
-                                <button
-                                    onClick={handleContinue}
-                                    className="flex-1 bg-green-600 text-white py-4 px-6 rounded-xl hover:bg-green-700 transition-all transform hover:scale-105 font-medium flex items-center justify-center gap-2"
-                                >
-                                    <span>{tBtn.continue}</span>
-                                    <Send className="h-5 w-5" />
-                                </button>
-                            </div>
                         </>
                     ) : (
                         <>
-                            {/* Success Step */}
+                            {/* Success Step - After submitting contact details */}
                             <div className="text-center">
-                                <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-3" />
-                                <p className="text-gray-600 text-lg">{t.description}</p>
+                                <CheckCircle className="h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 text-blue-500 mx-auto mb-2 xs:mb-3" />
+                                <p className="text-gray-600 text-sm xs:text-base sm:text-lg">{t.description}</p>
                             </div>
 
-                            {/* Token Number - Highlighted */}
-                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6">
-                                <p className="text-sm font-medium text-gray-600 mb-2 text-center">
+                            {/* Token Number */}
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-4 xs:p-5 sm:p-6">
+                                <p className="text-xs xs:text-sm font-medium text-gray-600 mb-2 text-center">
                                     {t.tokenLabel}
                                 </p>
-                                <div className="flex items-center justify-center gap-3">
-                                    <span className="text-3xl font-bold text-green-700 tracking-wider">
+                                <div className="flex items-center justify-center gap-2 xs:gap-3 flex-wrap">
+                                    <span className="text-xl xs:text-2xl sm:text-3xl font-bold text-blue-700 tracking-wider break-all">
                                         {tokenNumber}
                                     </span>
                                     <button
                                         onClick={copyToClipboard}
-                                        className="p-2 hover:bg-green-100 rounded-lg transition-colors"
+                                        className="p-1.5 xs:p-2 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0"
                                         title={tBtn.copyToken}
+                                        aria-label="Copy token"
                                     >
                                         {copied ? (
-                                            <CheckCircle className="h-5 w-5 text-green-600" />
+                                            <CheckCircle className="h-4 w-4 xs:h-5 xs:w-5 text-blue-600" />
                                         ) : (
-                                            <Copy className="h-5 w-5 text-gray-600" />
+                                            <Copy className="h-4 w-4 xs:h-5 xs:w-5 text-gray-600" />
                                         )}
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Contact Information */}
-                            {(contactDetails.name || contactDetails.email || contactDetails.phone) && (
-                                <div className="bg-gray-50 rounded-xl p-5 space-y-3">
-                                    <h3 className="font-semibold text-gray-800 text-sm uppercase tracking-wide mb-3">
-                                        {t.contactInfo}
-                                    </h3>
-                                    {contactDetails.name && (
-                                        <div className="flex items-center gap-3 text-gray-700">
-                                            <User className="h-5 w-5 text-gray-500" />
-                                            <span className="text-sm">{contactDetails.name}</span>
-                                        </div>
-                                    )}
-                                    {contactDetails.email && (
-                                        <div className="flex items-center gap-3 text-gray-700">
-                                            <Mail className="h-5 w-5 text-gray-500" />
-                                            <span className="text-sm break-all">{contactDetails.email}</span>
-                                        </div>
-                                    )}
-                                    {contactDetails.phone && (
-                                        <div className="flex items-center gap-3 text-gray-700">
-                                            <Phone className="h-5 w-5 text-gray-500" />
-                                            <span className="text-sm">{contactDetails.phone}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Action Buttons */}
-                            <div className="space-y-3">
-                                <p className="text-sm text-gray-600 text-center font-medium">
-                                    {t.shareMessage}
-                                </p>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        onClick={shareOnWhatsApp}
-                                        className="flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-xl hover:bg-green-700 transition-all transform hover:scale-105 font-medium"
-                                    >
-                                        <MessageCircle className="h-5 w-5" />
-                                        <span className="text-sm">{tBtn.shareWhatsApp}</span>
-                                    </button>
-                                    <button
-                                        onClick={downloadReceipt}
-                                        className="flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-xl hover:bg-blue-700 transition-all transform hover:scale-105 font-medium"
-                                    >
-                                        <Download className="h-5 w-5" />
-                                        <span className="text-sm">{tBtn.downloadReceipt}</span>
-                                    </button>
-                                </div>
-                            </div>
+                            {/* Share on WhatsApp Button */}
+                            <button
+                                onClick={shareOnWhatsApp}
+                                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 xs:py-3.5 sm:py-4 px-4 xs:px-6 rounded-xl hover:bg-green-700 transition-all transform hover:scale-105 font-medium text-sm xs:text-base"
+                            >
+                                <MessageCircle className="h-5 w-5 xs:h-6 xs:w-6" />
+                                <span>{tBtn.shareWhatsApp}</span>
+                            </button>
 
                             {/* Close Button */}
                             <button
                                 onClick={onClose}
-                                className="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                                className="w-full bg-gray-100 text-gray-700 py-2.5 xs:py-3 px-4 xs:px-6 rounded-xl hover:bg-gray-200 transition-colors font-medium text-sm xs:text-base"
                             >
                                 {tBtn.close}
                             </button>
                         </>
                     )}
                 </div>
+
+                {/* Fixed Submit Button - Only show in Step 1 */}
+                {step === 1 && (
+                    <div className="flex-shrink-0 p-4 xs:p-2 sm:p-8 pt-0 border-t border-gray-200 bg-white">
+                        <button
+                            onClick={handleSubmit}
+                            className="w-full bg-blue-600 text-white py-3 xs:py-3.5 sm:py-4 px-4 xs:px-6 rounded-xl hover:bg-blue-700 transition-all transform hover:scale-105 font-medium flex items-center justify-center gap-2 text-sm xs:text-base"
+                        >
+                            <span>{tBtn.continue}</span>
+                            <Send className="h-4 w-4 xs:h-5 xs:w-5" />
+                        </button>
+                    </div>
+                )}
             </div>
 
             <style jsx>{`
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-                @keyframes slideUp {
-                    from { 
-                        opacity: 0;
-                        transform: translateY(30px);
-                    }
-                    to { 
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                .animate-fadeIn {
-                    animation: fadeIn 0.3s ease-out;
-                }
-                .animate-slideUp {
-                    animation: slideUp 0.4s ease-out;
-                }
-            `}</style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-out;
+        }
+        .animate-slideUp {
+            animation: slideUp 0.4s ease-out;
+        }
+    `}</style>
         </div>
+
+
     );
 };
 
@@ -636,80 +830,71 @@ export default function ReviewForm() {
     const searchParams = useSearchParams();
     const locationId = searchParams.get('locationId') || "148";
     const companyId = searchParams.get('companyId');
-    const {
-        register,
-        handleSubmit,
-        formState: { errors, isValid },
-        setValue,
-        watch,
-        reset,
-    } = useForm({
-        resolver: zodResolver(reviewSchema),
-        mode: "onChange",
-        defaultValues: {
-            rating: 0,
-            reason_ids: [],
-            description: "",
-            images: [],
-            location: null,
-        },
-    });
 
-    const rating = watch("rating");
-    const selectedReasons = watch("reason_ids");
+    const [rating, setRating] = useState(0);
+    const [selectedReasons, setSelectedReasons] = useState([]);
+    const [description, setDescription] = useState("");
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
     const handleImagesChange = (newImages) => {
         setImages(newImages);
-        setValue("images", newImages, { shouldValidate: true });
     };
 
     const handleLocationChange = (newLocation) => {
         setLocation(newLocation);
-        setValue("location", newLocation, { shouldValidate: true });
     };
 
     const handleRatingChange = (newRating) => {
-        setValue("rating", newRating, { shouldValidate: true });
+        setRating(newRating);
     };
 
     const handleReasonToggle = (reasonId) => {
+
         const updated = selectedReasons.includes(reasonId)
-            ? selectedReasons.filter((id) => id !== reasonId)
-            : [...selectedReasons, reasonId];
-        setValue("reason_ids", updated);
+            ? selectedReasons.filter(id => id !== reasonId)
+            : [...selectedReasons.filter(id => id !== 0), reasonId];
+
+        setSelectedReasons(updated);
     };
 
-    const submitReview = async (data, contactDetails = null) => {
+    const validateForm = () => {
+        if (rating === 0) {
+            toast.error("Please provide a rating");
+            return false;
+        }
+
+        return true;
+    };
+
+    const submitReview = async (data) => {
         try {
             setIsSubmitting(true);
 
             const formData = new FormData();
 
-            // Only add contact details if they exist
-            if (contactDetails?.name) formData.append("name", contactDetails.name);
-            if (contactDetails?.email) formData.append("email", contactDetails.email);
-            if (contactDetails?.phone?.trim()) formData.append("phone", contactDetails.phone);
-
             if (companyId) formData.append("companyId", companyId);
 
             formData.append("rating", data.rating.toString());
             formData.append("description", data.description || "");
-            formData.append("reason_ids", JSON.stringify(data.reason_ids));
-            formData.append("latitude", data.location.latitude.toString());
-            formData.append("longitude", data.location.longitude.toString());
+            formData.append("reason_ids", JSON.stringify(data.reasonids));
+
+            if (data.location?.latitude && data.location?.longitude) {
+                formData.append('latitude', data.location.latitude.toString());
+                formData.append('longitude', data.location.longitude.toString());
+            }
+
             formData.append("location_id", locationId);
 
             images.forEach((img) => {
                 formData.append("images", img);
             });
 
-            const res = await fetch("https://diandrous-damion-clearer.ngrok-free.dev/api/user-review", {
+
+            const res = await fetch(`${API_URL}/user-review`, {
                 method: "POST",
-                headers: {
-                    'ngrok-skip-browser-warning': 'true',
-                },
                 body: formData,
             });
+
 
             const contentType = res.headers.get('content-type');
 
@@ -725,10 +910,20 @@ export default function ReviewForm() {
                 throw new Error(result.error || result.message || "Failed to submit review");
             }
 
-            // ✅ Store the review ID for later update
+            // ✅ Store both review ID and token
             if (result.reviewId) {
                 setSubmittedReviewId(result.reviewId);
             }
+
+            // ✅ Store review data with token from backend
+            setReviewData({
+                rating: data.rating,
+                reasonids: data.reasonids,
+                description: data.description,
+                location: data.location,
+                images: images,
+                tokenNumber: result.tokenNumber // ✅ Token from backend response
+            });
 
             toast.success(result.message || "Review submitted successfully!");
             return true;
@@ -742,14 +937,28 @@ export default function ReviewForm() {
         }
     };
 
-    const handleFormSubmit = async (data) => {
+    const handleFormSubmit = async (e) => {
+        e.preventDefault();
 
-        const success = await submitReview(data, null);
+        if (!validateForm()) return;
+
+        const reviewData = {
+            rating: rating,
+            description: description,
+            reasonids: selectedReasons,
+            location: location
+        };
+
+        // ✅ Call submitReview without contact details parameter
+        const success = await submitReview(reviewData);
 
         if (success) {
-            setReviewData(data);
             setShowSuccessPopup(true);
-            reset();
+
+            // Reset form
+            setRating(0);
+            setSelectedReasons([]);
+            setDescription('');
             setImages([]);
             setLocation(null);
         }
@@ -761,23 +970,28 @@ export default function ReviewForm() {
             return false;
         }
 
-        if (!contactDetails.name && !contactDetails.email && !contactDetails.phone) {
-            return true; // Nothing to update
+        // ✅ Check if at least one field has actual content (not just whitespace)
+        const hasName = contactDetails.name && contactDetails.name.trim();
+        const hasEmail = contactDetails.email && contactDetails.email.trim();
+        const hasPhone = contactDetails.phone && contactDetails.phone.trim();
+
+        if (!hasName || !hasEmail || !hasPhone) {
+            toast.error(translations[lang].messages.fillAllRequired || "Please fill all required fields");
+            return false;
         }
 
         try {
             const res = await fetch(
-                `https://diandrous-damion-clearer.ngrok-free.dev/api/user-review/${submittedReviewId}`,
+                `${API_URL}/user-review/${submittedReviewId}`,
                 {
                     method: "PATCH",
                     headers: {
                         'Content-Type': 'application/json',
-                        'ngrok-skip-browser-warning': 'true',
                     },
                     body: JSON.stringify({
-                        name: contactDetails.name || undefined,
-                        email: contactDetails.email || undefined,
-                        phone: contactDetails.phone || undefined,
+                        name: hasName ? contactDetails.name.trim() : undefined,
+                        email: hasEmail ? contactDetails.email.trim() : undefined,
+                        phone: hasPhone ? contactDetails.phone.trim() : undefined,
                     }),
                 }
             );
@@ -788,7 +1002,7 @@ export default function ReviewForm() {
                 throw new Error(result.error || "Failed to update contact details");
             }
 
-            toast.success("Contact details updated successfully!");
+            toast.success(translations[lang].messages.contactUpdateSuccess || "Contact details updated successfully!");
             return true;
 
         } catch (err) {
@@ -798,10 +1012,14 @@ export default function ReviewForm() {
         }
     };
 
-    const handleSkipContactDetails = () => {
-        toast.success("Thank you for your review!");
-        setShowSuccessPopup(false);
-        setReviewData(null);
+    const handleNoIssuesToggle = () => {
+        if (selectedReasons.includes(0)) {
+            // If "No Issues" is already selected, uncheck it
+            setSelectedReasons([]);
+        } else {
+            // If "No Issues" is not selected, select only it (clear all others)
+            setSelectedReasons([0]);
+        }
     };
 
     const handleClosePopup = () => {
@@ -835,7 +1053,7 @@ export default function ReviewForm() {
                         </div>
                     </div>
                     <form
-                        onSubmit={handleSubmit(handleFormSubmit)}
+                        onSubmit={handleFormSubmit}
                         className="p-6 sm:p-8 space-y-8"
                     >
                         <LocationDetector
@@ -844,12 +1062,10 @@ export default function ReviewForm() {
                             locationLabel={translations[lang].fields.washroomLocation}
                             buttonText={translations[lang].buttons.getCurrentLocation}
                             detectingText={translations[lang].buttons.detecting}
+                            lang={lang}
+                            translations={translations}
                         />
-                        {errors.location && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {translations[lang].messages.locationRequired}
-                            </p>
-                        )}
+
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-4">
@@ -861,9 +1077,9 @@ export default function ReviewForm() {
                                 size={32}
                                 ratingLabels={translations[lang].ratingLabels}
                             />
-                            {errors.rating && (
-                                <p className="text-red-500 text-xs mt-2">
-                                    {errors.rating.message}
+                            {rating === 0 && (
+                                <p className="text-orange-600 text-xs mt-2">
+                                    Rating is required
                                 </p>
                             )}
                         </div>
@@ -878,27 +1094,49 @@ export default function ReviewForm() {
                         />
 
                         <div>
-                            <label className="flex items-center text-sm font-medium text-gray-700 mb-4">
-                                <CheckSquare className="h-4 w-4 mr-1" />
-                                {translations[lang].fields.selectIssues}
-                            </label>
-                            <div className="grid sm:grid-cols-2 gap-3">
-                                {translations[lang].issues.map((issueText, index) => (
-                                    <label
-                                        key={commonIndianWashroomIssues[index].id}
-                                        className="flex items-start space-x-3 p-4 rounded-lg border hover:bg-gray-50 cursor-pointer"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedReasons.includes(commonIndianWashroomIssues[index].id)}
-                                            onChange={() => handleReasonToggle(commonIndianWashroomIssues[index].id)}
-                                            className="mt-0.5 h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
-                                        />
-                                        <span className="text-sm text-gray-700">{issueText}</span>
-                                    </label>
-                                ))}
+                            {/* Header with Label and No Issues checkbox */}
+                            <div className="flex items-center justify-between mb-4">
+                                <label className="flex items-center text-sm font-medium text-gray-700">
+                                    <CheckSquare className="h-4 w-4 mr-1" />
+                                    {translations[lang].fields.selectIssues}
+                                </label>
+
+                                {/* No Issues Checkbox */}
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedReasons.includes(0)}
+                                        onChange={() => handleNoIssuesToggle()}
+                                        className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
+                                    />
+                                    <span className="text-sm font-medium text-gray-700">
+                                        {translations[lang].fields.noIssues}
+                                    </span>
+                                </label>
                             </div>
+
+                            {/* Issues Grid - Only show if "No Issues" is not selected */}
+                            {!selectedReasons.includes(0) && (
+                                <div className="grid sm:grid-cols-2 gap-3">
+                                    {translations[lang].issues.map((issueText, index) => (
+                                        <label
+                                            key={commonIndianWashroomIssues[index].id}
+                                            className="flex items-start space-x-3 p-4 rounded-lg border hover:bg-gray-50 cursor-pointer"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedReasons.includes(commonIndianWashroomIssues[index].id)}
+                                                onChange={() => handleReasonToggle(commonIndianWashroomIssues[index].id)}
+                                                className="mt-0.5 h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
+                                            />
+                                            <span className="text-sm text-gray-700">{issueText}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
                         </div>
+
+
 
                         <div>
                             <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
@@ -906,7 +1144,8 @@ export default function ReviewForm() {
                                 {translations[lang].fields.additional}
                             </label>
                             <textarea
-                                {...register("description")}
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
                                 rows={4}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none text-black"
                                 placeholder={translations[lang].placeholders.description}
@@ -915,7 +1154,7 @@ export default function ReviewForm() {
 
                         <button
                             type="submit"
-                            disabled={isSubmitting || !isValid}
+                            disabled={isSubmitting || rating === 0}
                             className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-lg"
                         >
                             {isSubmitting ? (
@@ -941,7 +1180,7 @@ export default function ReviewForm() {
                 reviewData={reviewData}
                 lang={lang}
                 onSubmitWithDetails={submitReviewWithContactDetails}
-                onSkip={handleSkipContactDetails}
+
             />
         </>
     );
