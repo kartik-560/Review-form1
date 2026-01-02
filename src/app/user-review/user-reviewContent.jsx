@@ -21,8 +21,7 @@ import LocationDetector from "./LocationDetector";
 import CloudinaryImageUploader from "./CloudinaryImageUploader";
 import toast from "react-hot-toast";
 import { useSearchParams } from 'next/navigation';
-
-
+import jsPDF from 'jspdf';
 
 const commonIndianWashroomIssues = [
     { id: 1, text: "Dirty or unflushed toilets (Western or Indian)" },
@@ -363,12 +362,10 @@ const JagrukNagrikPopup = ({ isOpen, onClose, reviewData, lang, onSubmitWithDeta
         if (validateContactForm()) {
             const success = await onSubmitWithDetails(contactDetails);
             if (success) {
-                setStep(2); // ✅ Just move to step 2, token already exists in reviewData
+                setStep(2);
             }
         }
     };
-
-
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(tokenNumber);
@@ -377,227 +374,89 @@ const JagrukNagrikPopup = ({ isOpen, onClose, reviewData, lang, onSubmitWithDeta
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const shareOnWhatsApp = () => {
-        const message = `🏆 ${t.title}!\n\nI just contributed to improving public facilities!\n\nToken: ${tokenNumber}\nName: ${contactDetails.name}\n\nJoin the movement for cleaner public spaces! 🚻✨`;
-        const url = `https://wa.me/${contactDetails.phone || ''}?text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
+    const generatePDF = () => {
+        const doc = new jsPDF();
+
+        // Set colors and fonts
+        doc.setFillColor(37, 99, 235);
+        doc.rect(0, 0, 210, 40, 'F');
+
+        // Header
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont(undefined, 'bold');
+        doc.text('Swachh Drishti Abhiyan', 105, 20, { align: 'center' });
+
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        doc.text('Contribution Receipt', 105, 30, { align: 'center' });
+
+        // Body
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Thank you for contributing!', 20, 60);
+
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        doc.text('I just contributed to improving public facilities!', 20, 75);
+
+        // Token Info
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Your Details:', 20, 95);
+
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Token Number: ${tokenNumber}`, 20, 110);
+        doc.text(`Name: ${contactDetails.name}`, 20, 120);
+        doc.text(`Email: ${contactDetails.email}`, 20, 130);
+        doc.text(`Phone: ${contactDetails.phone}`, 20, 140);
+
+        // Footer
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text('Join the movement for cleaner public spaces!', 105, 170, { align: 'center' });
+
+        doc.setFontSize(8);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 105, 180, { align: 'center' });
+
+        return doc;
+    };
+
+    // Share on WhatsApp - Simple approach
+    const shareOnWhatsApp = async () => {
+        try {
+            console.log('Share button clicked');
+
+            // Generate PDF
+            const doc = generatePDF();
+            const pdfBlob = doc.output('blob');
+            const fileName = `Swachh-Drishti-Receipt-${tokenNumber}.pdf`;
+
+            // Create File object
+            const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+            // Check if Web Share API is supported
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file]
+                });
+                toast.success('Shared successfully!');
+            } else {
+                toast.error('PDF sharing not supported. Please use a mobile device.');
+            }
+
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error('Share error:', error);
+                toast.error('Failed to share.');
+            }
+        }
     };
 
     return (
-        // <div className="fixed inset-0 z-50 flex items-center justify-center p-3 xs:p-4 sm:p-6 bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn overflow-y-auto">
-        //     <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-[95%] xs:max-w-md sm:max-w-lg md:max-w-xl my-auto overflow-hidden animate-slideUp">
-        //         {/* Decorative Header */}
-        //         <div className="relative bg-gradient-to-r from-blue-600 to-blue-700 p-4 xs:p-6 sm:p-8 text-white overflow-hidden">
-        //             {/* Background decorations */}
-        //             <div className="absolute top-0 right-0 w-24 h-24 xs:w-32 xs:h-32 sm:w-40 sm:h-40 bg-white opacity-10 rounded-full -mr-12 -mt-12 xs:-mr-16 xs:-mt-16 sm:-mr-20 sm:-mt-20"></div>
-        //             <div className="absolute bottom-0 left-0 w-20 h-20 xs:w-24 xs:h-24 sm:w-32 sm:h-32 bg-white opacity-10 rounded-full -ml-10 -mb-10 xs:-ml-12 xs:-mb-12 sm:-ml-16 sm:-mb-16"></div>
 
-        //             <button
-        //                 onClick={onClose}
-        //                 className="absolute top-2 right-2 xs:top-3 xs:right-3 sm:top-4 sm:right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1.5 xs:p-2 transition-all z-10"
-        //                 aria-label="Close modal"
-        //             >
-        //                 <X className="h-4 w-4 xs:h-5 xs:w-5" />
-        //             </button>
-
-        //             <div className="relative z-10 text-center">
-        //                 <div className="inline-flex items-center justify-center w-14 h-14 xs:w-16 xs:h-16 sm:w-20 sm:h-20 bg-white rounded-full mb-2 xs:mb-3 sm:mb-4 animate-bounce">
-        //                     <Award className="h-7 w-7 xs:h-8 xs:w-8 sm:h-10 sm:w-10 text-blue-600" />
-        //                 </div>
-        //                 <h2 className="text-xl xs:text-2xl sm:text-3xl font-bold mb-1 xs:mb-2 leading-tight">{t.title}</h2>
-        //                 <p className="text-blue-100 text-xs xs:text-sm font-medium">{t.subtitle}</p>
-        //             </div>
-        //         </div>
-
-        //         {/* Content */}
-        //         <div className="p-4 xs:p-6 sm:p-8 space-y-4 xs:space-y-5 sm:space-y-6 max-h-[calc(100vh-200px)] xs:max-h-[calc(100vh-220px)] sm:max-h-none overflow-y-auto">
-        //             {step === 1 ? (
-        //                 <>
-        //                     {/* Success Message */}
-        //                     <div className="text-center">
-        //                         <CheckCircle className="h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 text-blue-500 mx-auto mb-2 xs:mb-3" />
-        //                         <p className="text-gray-700 text-base xs:text-lg mb-1 xs:mb-2 font-semibold leading-snug">{tMsg.successMessage}</p>
-        //                     </div>
-
-        //                     {/* Token Number - Show on First Step */}
-        //                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-4 xs:p-5 sm:p-6">
-        //                         <p className="text-xs xs:text-sm font-medium text-gray-600 mb-2 text-center">
-        //                             {t.tokenLabel}
-        //                         </p>
-        //                         <div className="flex items-center justify-center gap-2 xs:gap-3 flex-wrap">
-        //                             <span className="text-xl xs:text-2xl sm:text-3xl font-bold text-blue-700 tracking-wider break-all">
-        //                                 {tokenNumber}
-        //                             </span>
-        //                             <button
-        //                                 onClick={copyToClipboard}
-        //                                 className="p-1.5 xs:p-2 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0"
-        //                                 title={tBtn.copyToken}
-        //                                 aria-label="Copy token"
-        //                             >
-        //                                 {copied ? (
-        //                                     <CheckCircle className="h-4 w-4 xs:h-5 xs:w-5 text-blue-600" />
-        //                                 ) : (
-        //                                     <Copy className="h-4 w-4 xs:h-5 xs:w-5 text-gray-600" />
-        //                                 )}
-        //                             </button>
-        //                         </div>
-        //                     </div>
-
-        //                     {/* Campaign Question */}
-        //                     <div className="text-center">
-        //                         <p className="text-gray-700 text-sm xs:text-base font-semibold mb-1">{t.enterDetails}</p>
-
-        //                     </div>
-        //                     {errors.general && (
-        //                         <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-        //                             <p className="text-red-600 text-sm text-center">{errors.general}</p>
-        //                         </div>
-        //                     )}
-        //                     <div className="space-y-3 xs:space-y-4">
-        //                         {/* Name Field */}
-        //                         <div>
-        //                             <label className="flex items-center text-xs xs:text-sm font-medium text-gray-700 mb-1.5 xs:mb-2">
-        //                                 <User className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
-        //                                 {translations[lang].fields.name}
-        //                             </label>
-        //                             <input
-        //                                 type="text"
-        //                                 value={contactDetails.name}
-        //                                 onChange={(e) => setContactDetails({ ...contactDetails, name: e.target.value })}
-        //                                 className="w-full px-3 py-2.5 xs:px-4 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-        //                                 placeholder={translations[lang].placeholders.name}
-        //                             />
-        //                             {errors.name && (
-        //                                 <p className="text-red-500 text-xs mt-1">{errors.name}</p>
-        //                             )}
-        //                         </div>
-
-        //                         {/* Email Field */}
-        //                         <div>
-        //                             <label className="flex items-center text-xs xs:text-sm font-medium text-gray-700 mb-1.5 xs:mb-2">
-        //                                 <Mail className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
-        //                                 {translations[lang].fields.email}
-        //                             </label>
-        //                             <input
-        //                                 type="email"
-        //                                 value={contactDetails.email}
-        //                                 onChange={(e) => setContactDetails({ ...contactDetails, email: e.target.value })}
-        //                                 className="w-full px-3 py-2.5 xs:px-4 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-        //                                 placeholder={translations[lang].placeholders.email}
-        //                             />
-        //                             {errors.email && (
-        //                                 <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-        //                             )}
-        //                         </div>
-
-        //                         {/* Phone Field */}
-        //                         <div>
-        //                             <label className="flex items-center text-xs xs:text-sm font-medium text-gray-700 mb-1.5 xs:mb-2">
-        //                                 <Phone className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
-        //                                 {translations[lang].fields.phone}
-        //                             </label>
-        //                             <input
-        //                                 type="tel"
-        //                                 value={contactDetails.phone}
-        //                                 onChange={(e) => setContactDetails({ ...contactDetails, phone: e.target.value })}
-        //                                 className="w-full px-3 py-2.5 xs:px-4 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-        //                                 placeholder={translations[lang].placeholders.phone}
-        //                                 maxLength={10}
-        //                             />
-        //                             {errors.phone && (
-        //                                 <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
-        //                             )}
-        //                         </div>
-        //                     </div>
-
-        //                     {/* Action Buttons */}
-        //                     <div className="flex flex-col xs:flex-row gap-2.5 xs:gap-3 pt-2">
-
-        //                         <button
-        //                             onClick={handleSubmit}
-        //                             className="w-full xs:flex-1 bg-blue-600 text-white py-3 xs:py-3.5 sm:py-4 px-4 xs:px-6 rounded-xl hover:bg-blue-700 transition-all transform hover:scale-105 font-medium flex items-center justify-center gap-2 text-sm xs:text-base"
-        //                         >
-        //                             <span>{tBtn.continue}</span>
-        //                             <Send className="h-4 w-4 xs:h-5 xs:w-5" />
-        //                         </button>
-        //                     </div>
-        //                 </>
-        //             ) : (
-        //                 <>
-        //                     {/* Success Step - After submitting contact details */}
-        //                     <div className="text-center">
-        //                         <CheckCircle className="h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 text-blue-500 mx-auto mb-2 xs:mb-3" />
-        //                         <p className="text-gray-600 text-sm xs:text-base sm:text-lg">{t.description}</p>
-        //                     </div>
-
-        //                     {/* Token Number */}
-        //                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-4 xs:p-5 sm:p-6">
-        //                         <p className="text-xs xs:text-sm font-medium text-gray-600 mb-2 text-center">
-        //                             {t.tokenLabel}
-        //                         </p>
-        //                         <div className="flex items-center justify-center gap-2 xs:gap-3 flex-wrap">
-        //                             <span className="text-xl xs:text-2xl sm:text-3xl font-bold text-blue-700 tracking-wider break-all">
-        //                                 {tokenNumber}
-        //                             </span>
-        //                             <button
-        //                                 onClick={copyToClipboard}
-        //                                 className="p-1.5 xs:p-2 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0"
-        //                                 title={tBtn.copyToken}
-        //                                 aria-label="Copy token"
-        //                             >
-        //                                 {copied ? (
-        //                                     <CheckCircle className="h-4 w-4 xs:h-5 xs:w-5 text-blue-600" />
-        //                                 ) : (
-        //                                     <Copy className="h-4 w-4 xs:h-5 xs:w-5 text-gray-600" />
-        //                                 )}
-        //                             </button>
-        //                         </div>
-        //                     </div>
-
-        //                     {/* Share on WhatsApp Button */}
-        //                     <button
-        //                         onClick={shareOnWhatsApp}
-        //                         className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 xs:py-3.5 sm:py-4 px-4 xs:px-6 rounded-xl hover:bg-green-700 transition-all transform hover:scale-105 font-medium text-sm xs:text-base"
-        //                     >
-        //                         <MessageCircle className="h-5 w-5 xs:h-6 xs:w-6" />
-        //                         <span>{tBtn.shareWhatsApp}</span>
-        //                     </button>
-
-        //                     {/* Close Button */}
-        //                     <button
-        //                         onClick={onClose}
-        //                         className="w-full bg-gray-100 text-gray-700 py-2.5 xs:py-3 px-4 xs:px-6 rounded-xl hover:bg-gray-200 transition-colors font-medium text-sm xs:text-base"
-        //                     >
-        //                         {tBtn.close}
-        //                     </button>
-        //                 </>
-        //             )}
-        //         </div>
-        //     </div>
-
-        //     <style jsx>{`
-        //         @keyframes fadeIn {
-        //             from { opacity: 0; }
-        //             to { opacity: 1; }
-        //         }
-        //         @keyframes slideUp {
-        //             from { 
-        //                 opacity: 0;
-        //                 transform: translateY(30px);
-        //             }
-        //             to { 
-        //                 opacity: 1;
-        //                 transform: translateY(0);
-        //             }
-        //         }
-        //         .animate-fadeIn {
-        //             animation: fadeIn 0.3s ease-out;
-        //         }
-        //         .animate-slideUp {
-        //             animation: slideUp 0.4s ease-out;
-        //         }
-        //     `}</style>
-        // </div>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 xs:p-4 sm:p-6 bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn overflow-y-auto">
             <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-[95%] xs:max-w-md sm:max-w-lg md:max-w-xl my-auto overflow-hidden animate-slideUp flex flex-col max-h-[90vh]">
                 {/* Decorative Header */}
@@ -642,18 +501,7 @@ const JagrukNagrikPopup = ({ isOpen, onClose, reviewData, lang, onSubmitWithDeta
                                     <span className="text-xl xs:text-2xl sm:text-3xl font-bold text-blue-700 tracking-wider break-all">
                                         {tokenNumber}
                                     </span>
-                                    <button
-                                        onClick={copyToClipboard}
-                                        className="p-1.5 xs:p-2 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0"
-                                        title={tBtn.copyToken}
-                                        aria-label="Copy token"
-                                    >
-                                        {copied ? (
-                                            <CheckCircle className="h-4 w-4 xs:h-5 xs:w-5 text-blue-600" />
-                                        ) : (
-                                            <Copy className="h-4 w-4 xs:h-5 xs:w-5 text-gray-600" />
-                                        )}
-                                    </button>
+
                                 </div>
                             </div>
 
@@ -742,18 +590,7 @@ const JagrukNagrikPopup = ({ isOpen, onClose, reviewData, lang, onSubmitWithDeta
                                     <span className="text-xl xs:text-2xl sm:text-3xl font-bold text-blue-700 tracking-wider break-all">
                                         {tokenNumber}
                                     </span>
-                                    <button
-                                        onClick={copyToClipboard}
-                                        className="p-1.5 xs:p-2 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0"
-                                        title={tBtn.copyToken}
-                                        aria-label="Copy token"
-                                    >
-                                        {copied ? (
-                                            <CheckCircle className="h-4 w-4 xs:h-5 xs:w-5 text-blue-600" />
-                                        ) : (
-                                            <Copy className="h-4 w-4 xs:h-5 xs:w-5 text-gray-600" />
-                                        )}
-                                    </button>
+
                                 </div>
                             </div>
 
@@ -779,7 +616,7 @@ const JagrukNagrikPopup = ({ isOpen, onClose, reviewData, lang, onSubmitWithDeta
 
                 {/* Fixed Submit Button - Only show in Step 1 */}
                 {step === 1 && (
-                    <div className="flex-shrink-0 p-4 xs:p-2 sm:p-8 pt-0 border-t border-gray-200 bg-white">
+                    <div className="flex-shrink-0 p-2 xs:p-2 sm:p-4 pt-0 border-t border-gray-200 bg-white">
                         <button
                             onClick={handleSubmit}
                             className="w-full bg-blue-600 text-white py-3 xs:py-3.5 sm:py-4 px-4 xs:px-6 rounded-xl hover:bg-blue-700 transition-all transform hover:scale-105 font-medium flex items-center justify-center gap-2 text-sm xs:text-base"
@@ -829,13 +666,13 @@ export default function ReviewForm() {
     const [submittedReviewId, setSubmittedReviewId] = useState(null);
     const searchParams = useSearchParams();
     const locationId = searchParams.get('locationId') || "148";
-    const companyId = searchParams.get('companyId');
 
     const [rating, setRating] = useState(0);
     const [selectedReasons, setSelectedReasons] = useState([]);
     const [description, setDescription] = useState("");
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
     const handleImagesChange = (newImages) => {
         setImages(newImages);
     };
@@ -871,8 +708,6 @@ export default function ReviewForm() {
             setIsSubmitting(true);
 
             const formData = new FormData();
-
-            if (companyId) formData.append("companyId", companyId);
 
             formData.append("rating", data.rating.toString());
             formData.append("description", data.description || "");
