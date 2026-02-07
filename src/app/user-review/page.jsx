@@ -12,7 +12,7 @@ const Loading = () => {
     );
 };
 
-export default function CleanerReviewPage() {
+export default function UserReviewPage() {
 
     return (
         <Suspense fallback={<Loading />}>
